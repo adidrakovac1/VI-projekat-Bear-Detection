@@ -24,6 +24,19 @@ from ultralytics import YOLO
 import tempfile
 import shutil # For cleaning up temporary directories
 
+def get_model_path():
+    if getattr(sys, 'frozen', False):
+        # Running as bundled app
+        base_path = os.path.dirname(sys.executable)
+        # For macOS .app, go up to Contents/Resources
+        if sys.platform == "darwin":
+            base_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'Resources'))
+        model_path = os.path.join(base_path, 'trenirani modeli', 'best.pt')
+    else:
+        # Running from source
+        model_path = os.path.abspath('trenirani modeli/best.pt')
+    return model_path
+
 # --- 1. Prediction Worker Thread ---
 # This class runs the YOLO prediction in a separate thread
 # to prevent the UI from freezing during processing.
@@ -654,7 +667,7 @@ class BearDetectionApp(QWidget):
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
 
-        model_path = "trenirani modeli/best.pt"
+        model_path = get_model_path()
         if not os.path.exists(model_path):
             QMessageBox.critical(self, "Model Not Found",
                                  f"YOLO model not found at: {model_path}\nPlease ensure the model path is correct and the model file exists.")
