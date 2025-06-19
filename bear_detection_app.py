@@ -53,53 +53,73 @@ class PredictionWorker(QThread):
             total_files = len(self.input_files)
 
             for i, file_path in enumerate(self.input_files):
-                # Update progress
-                self.progress.emit(int((i / total_files) * 100))
-
-                # YOLO prediction and saving
-                results = self.model(
-                    file_path,
-                    save=True,
-                    project=self.temp_output_dir,
-                    name='prediction_run'
-                )
-
-                # Get the actual directory where YOLO saved the results
-                if results and len(results) > 0:
-                    yolo_save_dir = results[0].save_dir
-                    original_filename = os.path.basename(file_path)
-                    # YOLO saves the file with its original name in the save_dir
-                    processed_path = os.path.join(yolo_save_dir, original_filename)
-
-                    if os.path.exists(processed_path):
-                        processed_file_paths.append(processed_path)
-                    else:
-                        print(f"Warning: Processed file not found at {processed_path}")
-                        # Fallback for images: display directly from plot() if save fails to locate
-                        if file_path.lower().endswith(('.png', '.jpg', '.jpeg')):
-                            img_with_boxes_np = results[0].plot() # NumPy array (BGR)
-                            img_with_boxes_rgb = cv2.cvtColor(img_with_boxes_np, cv2.COLOR_BGR2RGB)
-                            h, w, ch = img_with_boxes_rgb.shape
-                            bytes_per_line = ch * w
-                            qImg = QImage(img_with_boxes_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
-                            # Save QImage to a temporary file for consistent display
-                            temp_img_path = os.path.join(self.temp_output_dir, f"annotated_{original_filename}")
-                            qImg.save(temp_img_path)
-                            processed_file_paths.append(temp_img_path)
+                ext = os.path.splitext(file_path)[1].lower()
+                if ext in ['.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv']:
+                    # --- Video: process frame by frame ---
+                    cap = cv2.VideoCapture(file_path)
+                    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    frame_idx = 0
+                    video_save_dir = os.path.join(self.temp_output_dir, f"video_{i}")
+                    os.makedirs(video_save_dir, exist_ok=True)
+                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                    out_path = os.path.join(video_save_dir, os.path.basename(file_path))
+                    fps = cap.get(cv2.CAP_PROP_FPS)
+                    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    out = cv2.VideoWriter(out_path, fourcc, fps, (width, height))
+                    while cap.isOpened():
+                        ret, frame = cap.read()
+                        if not ret:
+                            break
+                        # Run detection on frame
+                        results = self.model(frame)
+                        if results and len(results) > 0:
+                            frame_with_boxes = results[0].plot()
+                            out.write(frame_with_boxes)
                         else:
-                             self.error.emit(f"Could not locate or display processed file for: {original_filename}")
-                             return # Stop if a critical file is missing
-
+                            out.write(frame)
+                        frame_idx += 1
+                        progress = int((frame_idx / total_frames) * 100)
+                        self.progress.emit(progress)
+                    cap.release()
+                    out.release()
+                    processed_file_paths.append(out_path)
+                    self.progress.emit(100)  # Ensure 100% at end
                 else:
-                    self.error.emit(f"YOLO did not return results for {file_path}")
-                    return # Stop if YOLO fails
-
-            # Emit 100% progress at the end
+                    # --- Image: original logic ---
+                    self.progress.emit(int((i / total_files) * 100))
+                    results = self.model(
+                        file_path,
+                        save=True,
+                        project=self.temp_output_dir,
+                        name='prediction_run'
+                    )
+                    if results and len(results) > 0:
+                        yolo_save_dir = results[0].save_dir
+                        original_filename = os.path.basename(file_path)
+                        processed_path = os.path.join(yolo_save_dir, original_filename)
+                        if os.path.exists(processed_path):
+                            processed_file_paths.append(processed_path)
+                        else:
+                            print(f"Warning: Processed file not found at {processed_path}")
+                            if file_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+                                img_with_boxes_np = results[0].plot()
+                                img_with_boxes_rgb = cv2.cvtColor(img_with_boxes_np, cv2.COLOR_BGR2RGB)
+                                h, w, ch = img_with_boxes_rgb.shape
+                                bytes_per_line = ch * w
+                                qImg = QImage(img_with_boxes_rgb.data, w, h, bytes_per_line, QImage.Format_RGB888)
+                                temp_img_path = os.path.join(self.temp_output_dir, f"annotated_{original_filename}")
+                                qImg.save(temp_img_path)
+                                processed_file_paths.append(temp_img_path)
+                            else:
+                                self.error.emit(f"Could not locate or display processed file for: {original_filename}")
+                                return
+                    else:
+                        self.error.emit(f"YOLO did not return results for {file_path}")
+                        return
             self.progress.emit(100)
             self.finished.emit(processed_file_paths, self.temp_output_dir)
-
         except Exception as e:
-            # Clean up temp directory even if error occurs
             if self.temp_output_dir and os.path.exists(self.temp_output_dir):
                 shutil.rmtree(self.temp_output_dir)
             self.error.emit(f"Error during prediction: {e}")
@@ -231,7 +251,7 @@ class BearDetectionApp(QWidget):
         self.progress_bar.setStyleSheet(
             """
             QProgressBar {
-                border: 2px solid #3498DB;
+                border: 2px solid #27AE60;
                 border-radius: 5px;
                 text-align: center;
                 height: 25px;
@@ -239,7 +259,7 @@ class BearDetectionApp(QWidget):
                 font-weight: bold;
             }
             QProgressBar::chunk {
-                background-color: #3498DB;
+                background-color: #90EE90; /* Light green */
                 width: 20px;
             }
             """
@@ -322,19 +342,25 @@ class BearDetectionApp(QWidget):
         self.prev_image_button = QPushButton('← Previous')
         self.prev_image_button.setStyleSheet(self.get_nav_button_style())
         self.prev_image_button.clicked.connect(self.show_prev_image)
-        
+
         self.image_counter_label = QLabel("0 / 0")
         self.image_counter_label.setAlignment(Qt.AlignCenter)
         self.image_counter_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #2C3E50; margin: 0 20px;")
-        
+
         self.next_image_button = QPushButton('Next →')
         self.next_image_button.setStyleSheet(self.get_nav_button_style())
         self.next_image_button.clicked.connect(self.show_next_image)
-        
+
+        # Download button for images
+        self.download_image_button = QPushButton('Download Image')
+        self.download_image_button.setStyleSheet(self.get_nav_button_style())
+        self.download_image_button.clicked.connect(self.download_current_image)
+
         img_nav_layout.addWidget(self.prev_image_button)
         img_nav_layout.addWidget(self.image_counter_label)
         img_nav_layout.addWidget(self.next_image_button)
-        
+        img_nav_layout.addWidget(self.download_image_button)
+
         images_layout.addWidget(img_nav_container)
         
         self.media_tabs.addTab(images_widget, "Images")
@@ -359,11 +385,11 @@ class BearDetectionApp(QWidget):
         play_layout = QHBoxLayout(play_controls)
         play_layout.setAlignment(Qt.AlignCenter)
         
-        self.play_button = QPushButton('▶️ Play')
+        self.play_button = QPushButton('Play')
         self.play_button.setStyleSheet(self.get_control_button_style())
         self.play_button.clicked.connect(self.toggle_playback)
         
-        self.stop_button = QPushButton('⏹️ Stop')
+        self.stop_button = QPushButton('Stop')
         self.stop_button.setStyleSheet(self.get_control_button_style())
         self.stop_button.clicked.connect(self.stop_video)
         
@@ -403,23 +429,29 @@ class BearDetectionApp(QWidget):
         video_nav_container = QWidget()
         video_nav_layout = QHBoxLayout(video_nav_container)
         video_nav_layout.setAlignment(Qt.AlignCenter)
-        
+
         self.prev_video_button = QPushButton('← Previous Video')
         self.prev_video_button.setStyleSheet(self.get_nav_button_style())
         self.prev_video_button.clicked.connect(self.show_prev_video)
-        
+
         self.video_counter_label = QLabel("0 / 0")
         self.video_counter_label.setAlignment(Qt.AlignCenter)
         self.video_counter_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #2C3E50; margin: 0 20px;")
-        
+
         self.next_video_button = QPushButton('Next Video →')
         self.next_video_button.setStyleSheet(self.get_nav_button_style())
         self.next_video_button.clicked.connect(self.show_next_video)
-        
+
+        # Download button for videos
+        self.download_video_button = QPushButton('Download Video')
+        self.download_video_button.setStyleSheet(self.get_nav_button_style())
+        self.download_video_button.clicked.connect(self.download_current_video)
+
         video_nav_layout.addWidget(self.prev_video_button)
         video_nav_layout.addWidget(self.video_counter_label)
         video_nav_layout.addWidget(self.next_video_button)
-        
+        video_nav_layout.addWidget(self.download_video_button)
+
         controls_layout.addWidget(video_nav_container)
         videos_layout.addWidget(controls_container)
         
@@ -591,10 +623,10 @@ class BearDetectionApp(QWidget):
 
     def media_state_changed(self, state):
         if state == QMediaPlayer.PlayingState:
-            self.play_button.setText('⏸️ Pause')
+            self.play_button.setText('Pause')
             self.position_timer.start(100)
         else:
-            self.play_button.setText('▶️ Play')
+            self.play_button.setText('Play')
             self.position_timer.stop()
 
     def position_changed(self, position):
@@ -622,7 +654,7 @@ class BearDetectionApp(QWidget):
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
 
-        model_path = "trenirani modeli/100epoha/best.pt"
+        model_path = "trenirani modeli/best.pt"
         if not os.path.exists(model_path):
             QMessageBox.critical(self, "Model Not Found",
                                  f"YOLO model not found at: {model_path}\nPlease ensure the model path is correct and the model file exists.")
@@ -666,6 +698,31 @@ class BearDetectionApp(QWidget):
             self.prediction_thread.wait()
         event.accept()
 
+    def download_current_image(self):
+        if not self.image_paths:
+            return
+        current_path = self.image_paths[self.current_image_index]
+        options = QFileDialog.Options()
+        save_path, _ = QFileDialog.getSaveFileName(self, "Save Image", os.path.basename(current_path), "Image Files (*.png *.jpg *.jpeg *.bmp *.gif);;All Files (*)", options=options)
+        if save_path:
+            try:
+                shutil.copy(current_path, save_path)
+                QMessageBox.information(self, "Download Complete", f"Image saved to: {save_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Download Error", f"Failed to save image: {e}")
+
+    def download_current_video(self):
+        if not self.video_paths:
+            return
+        current_path = self.video_paths[self.current_video_index]
+        options = QFileDialog.Options()
+        save_path, _ = QFileDialog.getSaveFileName(self, "Save Video", os.path.basename(current_path), "Video Files (*.mp4 *.avi *.mov *.mkv *.wmv *.flv);;All Files (*)", options=options)
+        if save_path:
+            try:
+                shutil.copy(current_path, save_path)
+                QMessageBox.information(self, "Download Complete", f"Video saved to: {save_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Download Error", f"Failed to save video: {e}")
 # --- 3. Main Execution Block ---
 if __name__ == "__main__":
     app = QApplication(sys.argv)
