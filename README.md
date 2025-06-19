@@ -49,7 +49,6 @@ python bear_detection_app.py
 
 ![Prikaz videa](docs/screenshots/video_detection.png)
 
-> **Napomena:** Ako slike nisu prikazane, kreirajte folder `docs/screenshots` i dodajte vlastite slike ekrana aplikacije.
 
 ## Napomene
 
