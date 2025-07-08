@@ -31,10 +31,10 @@ def get_model_path():
         # For macOS .app, go up to Contents/Resources
         if sys.platform == "darwin":
             base_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'Resources'))
-        model_path = os.path.join(base_path, 'trenirani modeli', 'best.pt')
+        model_path = os.path.join(base_path, 'trained_models', 'best.pt')
     else:
         # Running from source
-        model_path = os.path.abspath('trenirani modeli/best.pt')
+        model_path = os.path.abspath('trained_models/best.pt')
     return model_path
 
 # --- 1. Prediction Worker Thread ---

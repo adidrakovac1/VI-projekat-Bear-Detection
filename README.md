@@ -1,60 +1,101 @@
-# Bear Detection Desktop Aplikacija
+# Bear Detection Desktop Application
 
-Ova aplikacija omogućava detekciju medvjeda na slikama i video zapisima koristeći YOLO model. Aplikacija ima grafički interfejs (GUI) i jednostavna je za korištenje.
+This desktop application enables detection of bears in images and videos using a YOLO-based model. It features a graphical user interface (GUI) and is simple to use. The model used for training is **YOLOv8**.
 
-## Zahtjevi
+## Project Overview
 
-- **Python** (preporučeno 3.8 ili noviji)
-- **pip** (Python package manager)
+The goal of this project is to assist in wildlife monitoring by detecting bears in their natural environment and classifying them into two categories:
 
-## Instalacija
+* `bear_juvenile` (young bears)
 
-1. **Klonirajte repozitorij:**
-   ```bash
-   git clone <URL_DO_REPOZITORIJA>
+* `bear_adult` (adult bears)
+
+## Requirements
+
+* **Python** (recommended 3.8 or newer)
+
+* **pip** (Python package manager)
+
+## Installation
+
+1. **Clone the repository:**
+
+   ```
+   git clone https://github.com/aljaljak2/VI-projekat-Bear-Detection
    cd VI-projekat-Bear-Detection
    ```
 
-2. **Instalirajte zavisnosti:**
-   ```bash
+2. **Install dependencies:**
+
+   ```
    pip install -r requirements.txt
    ```
 
-3. **Provjerite da se YOLO model nalazi u folderu `trenirani modeli` pod nazivom `best.pt`.**
+3. Ensure the YOLO model is located in the `trained_models` folder under the name `best.pt`.
 
-## Pokretanje aplikacije
+## Running the Application
 
-Pokrenite aplikaciju sljedećom komandom:
-```bash
+To launch the application, run:
+
+```
 python bear_detection_app.py
 ```
 
-## Korištenje aplikacije
+## Using the Application
 
-1. Kliknite na **"Upload Files"** i izaberite slike ili video zapise koje želite analizirati.
-2. Nakon što su fajlovi učitani, kliknite na **"Detect"** da pokrenete detekciju.
-3. Rezultati će biti prikazani u aplikaciji, a možete ih i preuzeti klikom na **"Download Image"** ili **"Download Video"**.
+1. Click on "Upload Files" and select the images or videos you want to analyze.
 
-## Izgled aplikacije
+2. After uploading, click on "Detect" to start the detection process.
 
-### Glavni prozor
+3. The results will be shown in the application. You can also download the results by clicking "Download Image" or "Download Video".
 
-![Glavni prozor aplikacije](docs/screenshots/main_window.png)
+## Application Interface
 
-### Prikaz slike sa detekcijom
+### Main Window
 
-![Prikaz slike](docs/screenshots/image_detection.png)
+![Main Window](docs/screenshots/main_window.png)
 
-### Prikaz video zapisa sa detekcijom
+### Image Detection Preview
 
-![Prikaz videa](docs/screenshots/video_detection.png)
+![Image Detection Preview](docs/screenshots/image_detection.png)
 
+### Video Detection Preview
 
-## Napomene
+![Video Detection Preview](docs/screenshots/video_detection.png)
 
-- Svi rezultati detekcije se privremeno čuvaju i mogu se preuzeti direktno iz aplikacije.
-- Ako nemate YOLO model (`best.pt`), potrebno ga je trenirati ili preuzeti odgovarajući model i smjestiti u folder `trenirani modeli`.
+## Model Performance
 
-## Kontakt
+| Metric | Overall | bear_juvenile | bear_adult |
+| ----- | ----- | ----- | ----- |
+| mAP50-95 | 0.9833 | 0.9833 | 0.9833 |
+| mAP50 | 0.9949 | 0.9950 | 0.9950 |
+| Precision | 0.9940 | 0.9967 | 0.9917 |
+| Recall | 0.9970 | 0.9984 | 0.9948 |
+| Inference Speed | ~14 ms/image | - | - |
 
-Za dodatna pitanja ili probleme, kontaktirajte autora projekta.
+## Additional Resources
+
+#### User Manual for the application is available at:
+
+```
+./documentation_presentation/Uputstvo za koristenje aplikacije
+```
+
+Google Colab Notebook (Model Training):
+[Open Notebook](https://colab.research.google.com/drive/130Iv0U6pZT90PVD9jLfbN7uq2qLytOY7?usp=sharing)
+
+Download Executable Files (Windows & iOS):
+[Open Google Drive Folder](https://drive.google.com/drive/folders/1z51ybWAXDgY3U-mokuTW3FYfFhfiy6HW?usp=sharing)
+
+Dataset Used for Training:
+[Open Dataset Link](https://drive.google.com/file/d/1Sb1OV_uOKbHR6Nf826b2L4SPjGwLB8uo/view?usp=sharing)
+
+## Notes
+
+* All detection results are stored temporarily and can be downloaded directly from the application.
+
+* If the YOLO model file (`best.pt`) is not present, you must train it or download a compatible model and place it in the `trained_models` folder.
+
+## Contact
+
+For additional questions or support, feel free to contact the project authors.
